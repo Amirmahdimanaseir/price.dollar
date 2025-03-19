@@ -1,2 +1,62 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+import requests
+from bs4 import BeautifulSoup
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# === تنظیمات ایمیل ===
+EMAIL_SENDER = "your@gmail.com"  # ایمیل ارسال‌کننده
+EMAIL_PASSWORD = "your passworl"  # رمز عبور (یا App Password برای جیمیل)
+EMAIL_RECEIVER = "your@example.com"  # ایمیل گیرنده
+
+# === دریافت قیمت دلار از tgju.org ===
+def get_dollar_price():
+    url = "https://www.tgju.org/currency"
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # پیدا کردن قیمت دلار در تگ مناسب
+        price_section = soup.find('span', {'class': 'price-value'})  # به‌روز‌رسانی بر اساس ساختار سایت
+        if price_section:
+            dollar_price = price_section.text.strip()
+            return dollar_price
+        else:
+            print("❌ قیمت دلار پیدا نشد.")
+            return None
+    except Exception as e:
+        print(f"❌ خطا در دریافت قیمت: {e}")
+        return None
+
+# === ارسال ایمیل ===
+def send_email(price):
+    try:
+        subject = "🔹 قیمت دلار در بازار آزاد"
+        body = f"💰 قیمت لحظه‌ای دلار: {price} تومان\n⏰ این پیام هر ۱ ساعت یک‌بار ارسال می‌شود."
+
+        msg = MIMEMultipart()
+        msg["From"] = EMAIL_SENDER
+        msg["To"] = EMAIL_RECEIVER
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
+        server.quit()
+
+        print("✅ ایمیل با موفقیت ارسال شد.")
+    except Exception as e:
+        print("❌ خطا در ارسال ایمیل:", e)
+
+# === اجرای برنامه هر ۱ ساعت ===
+def job():
+    price = get_dollar_price()
+    if price:
+        send_email(price)
+    else:
+        print("❌ خطا در دریافت قیمت دلار.")
+
+# === اجرای برنامه ===
+job()  # تست برنامه یک بار
